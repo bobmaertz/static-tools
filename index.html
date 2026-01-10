@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tools - Bob Maertz</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fafafa;
+            --text: #212121;
+            --text-dim: #666;
+            --accent: #1565c0;
+            --border: #e0e0e0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        header {
+            margin-bottom: 3rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+        
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+        
+        .tools-list {
+            list-style: none;
+        }
+        
+        .tool-item {
+            padding: 1.5rem 0;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .tool-item:last-child {
+            border-bottom: none;
+        }
+        
+        .tool-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: var(--accent);
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .tool-name:hover {
+            text-decoration: underline;
+        }
+        
+        .tool-description {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+        
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .tool-item {
+                padding: 1rem 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>tools.bobmaertz.com</h1>
+        <p class="subtitle">A collection of static tools and utilities</p>
+    </header>
+    
+    <ul class="tools-list">
+        <li class="tool-item">
+            <a href="/example-tool" class="tool-name">Example Tool</a>
+            <p class="tool-description">Description of what this tool does and how it helps solve a specific problem.</p>
+        </li>
+        
+        <li class="tool-item">
+            <a href="/another-tool" class="tool-name">Another Tool</a>
+            <p class="tool-description">A brief explanation of this tool's functionality and use case.</p>
+        </li>
+        
+        <li class="tool-item">
+            <a href="/utility-name" class="tool-name">Utility Name</a>
+            <p class="tool-description">What this utility does and why you might want to use it.</p>
+        </li>
+    </ul>
+</body>
+</html>
