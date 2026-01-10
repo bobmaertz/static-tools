@@ -40,13 +40,26 @@ jobs:
             echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Prepare deployment directory
+        run: |
+          mkdir -p dist
+          # Copy HTML, CSS, JS files from root
+          find . -maxdepth 1 \( -name "*.html" -o -name "*.css" -o -name "*.js" \) -exec cp {} dist/ \;
+          # Copy tool directories (excluding hidden files, .md, and other unwanted files)
+          for dir in */; do
+            if [[ ! "$dir" =~ ^\. ]] && [[ "$dir" != "dist/" ]] && [[ "$dir" != "node_modules/" ]]; then
+              mkdir -p "dist/${dir}"
+              find "$dir" \( -name "*.html" -o -name "*.css" -o -name "*.js" -o -name "*.wasm" -o -name "*.json" -o -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.svg" -o -name "*.ico" -o -name "*.woff" -o -name "*.woff2" -o -name "*.ttf" -o -name "*.eot" \) -exec cp --parents {} dist/ \;
+            fi
+          done
+
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: static-tools
-          directory: .
+          directory: dist
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
           branch: ${{ steps.deployment-type.outputs.branch }}
           wranglerVersion: '3'
