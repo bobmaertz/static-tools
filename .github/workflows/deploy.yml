@@ -5,15 +5,6 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Deployment environment'
-        required: true
-        default: 'preview'
-        type: choice
-        options:
-          - preview
-          - production
 
 jobs:
   deploy:
@@ -25,20 +16,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Determine deployment type
-        id: deployment-type
-        run: |
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "type=production" >> $GITHUB_OUTPUT
-            echo "branch=main" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "type=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
-            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          else
-            echo "type=preview" >> $GITHUB_OUTPUT
-            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          fi
 
       - name: Prepare deployment directory
         run: |
@@ -53,13 +30,10 @@ jobs:
             fi
           done
 
-      - name: Publish to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: static-tools
-          directory: dist
+          command: pages deploy dist --project-name=static-tools
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ steps.deployment-type.outputs.branch }}
-          wranglerVersion: '3'
