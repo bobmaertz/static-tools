@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown & Mermaid Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #fafafa;
+            --text: #212121;
+            --text-dim: #666;
+            --accent: #1565c0;
+            --border: #e0e0e0;
+            --code-bg: #f5f5f5;
+            --success: #2e7d32;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        header h1 a {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        header h1 a:hover {
+            color: var(--accent);
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem 2rem;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .controls {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        button {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        button:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        button.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        button.primary:hover {
+            background: #1256a3;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .editor-section {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .editor-section.minimized {
+            flex: 0;
+        }
+
+        .editor-section.minimized textarea {
+            height: 0;
+            min-height: 0;
+            padding: 0;
+            border: none;
+            opacity: 0;
+            margin: 0;
+        }
+
+        textarea {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            width: 100%;
+            flex: 1;
+            min-height: 200px;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text);
+            resize: vertical;
+            line-height: 1.5;
+            transition: all 0.3s ease;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        textarea::placeholder {
+            color: var(--text-dim);
+        }
+
+        .preview-section {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .preview-section.visible {
+            display: flex;
+        }
+
+        .preview-container {
+            flex: 1;
+            overflow: auto;
+            padding: 1.5rem;
+            background: white;
+            border: 1px solid var(--border);
+        }
+
+        /* Markdown Styles */
+        .markdown-body {
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .markdown-body h1,
+        .markdown-body h2,
+        .markdown-body h3,
+        .markdown-body h4,
+        .markdown-body h5,
+        .markdown-body h6 {
+            font-family: 'JetBrains Mono', monospace;
+            margin-top: 1.5em;
+            margin-bottom: 0.75em;
+            font-weight: 500;
+            line-height: 1.3;
+        }
+
+        .markdown-body h1 { font-size: 1.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+        .markdown-body h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+        .markdown-body h3 { font-size: 1.25rem; }
+        .markdown-body h4 { font-size: 1.1rem; }
+        .markdown-body h5 { font-size: 1rem; }
+        .markdown-body h6 { font-size: 0.9rem; color: var(--text-dim); }
+
+        .markdown-body h1:first-child,
+        .markdown-body h2:first-child,
+        .markdown-body h3:first-child {
+            margin-top: 0;
+        }
+
+        .markdown-body p {
+            margin-bottom: 1em;
+        }
+
+        .markdown-body a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        .markdown-body code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            background: var(--code-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+        }
+
+        .markdown-body pre {
+            background: var(--code-bg);
+            padding: 1rem;
+            overflow-x: auto;
+            border-radius: 4px;
+            margin-bottom: 1em;
+        }
+
+        .markdown-body pre code {
+            background: none;
+            padding: 0;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .markdown-body blockquote {
+            border-left: 4px solid var(--accent);
+            margin: 0 0 1em 0;
+            padding: 0.5em 1em;
+            color: var(--text-dim);
+            background: var(--code-bg);
+        }
+
+        .markdown-body ul,
+        .markdown-body ol {
+            margin-bottom: 1em;
+            padding-left: 2em;
+        }
+
+        .markdown-body li {
+            margin-bottom: 0.25em;
+        }
+
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1em;
+        }
+
+        .markdown-body th,
+        .markdown-body td {
+            border: 1px solid var(--border);
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background: var(--code-bg);
+            font-weight: 500;
+        }
+
+        .markdown-body hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 2em 0;
+        }
+
+        .markdown-body img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Mermaid diagrams */
+        .mermaid {
+            margin: 1.5em 0;
+            text-align: center;
+        }
+
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            header {
+                padding: 1rem;
+            }
+
+            main {
+                padding: 1rem;
+            }
+
+            header h1 {
+                font-size: 1.1rem;
+            }
+
+            textarea {
+                min-height: 150px;
+                font-size: 0.85rem;
+            }
+
+            .controls {
+                gap: 0.5rem;
+            }
+
+            button {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        .status {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-left: auto;
+        }
+
+        .status.success {
+            color: var(--success);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><a href="/">tools.bobmaertz.com</a> / markdown-viewer</h1>
+        <p class="subtitle">Render Markdown with Mermaid diagram support</p>
+    </header>
+
+    <main>
+        <div class="controls">
+            <button id="renderBtn" class="primary">Render</button>
+            <button id="editBtn" style="display: none;">Edit</button>
+            <button id="clearBtn">Clear</button>
+            <span id="status" class="status"></span>
+        </div>
+
+        <div id="editorSection" class="editor-section">
+            <textarea id="markdownInput" placeholder="Paste or type your Markdown here...
+
+Supports Mermaid diagrams using fenced code blocks:
+
+```mermaid
+graph TD
+    A[Start] --> B{Decision}
+    B -->|Yes| C[Do something]
+    B -->|No| D[Do something else]
+```
+
+Click 'Render' to preview your document."></textarea>
+        </div>
+
+        <div id="previewSection" class="preview-section">
+            <div class="preview-container">
+                <div id="markdownOutput" class="markdown-body"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'neutral',
+            securityLevel: 'loose',
+            fontFamily: 'IBM Plex Sans, sans-serif'
+        });
+
+        // DOM Elements
+        const markdownInput = document.getElementById('markdownInput');
+        const markdownOutput = document.getElementById('markdownOutput');
+        const editorSection = document.getElementById('editorSection');
+        const previewSection = document.getElementById('previewSection');
+        const renderBtn = document.getElementById('renderBtn');
+        const editBtn = document.getElementById('editBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const status = document.getElementById('status');
+
+        // Configure marked
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
+        // Custom renderer to handle Mermaid code blocks
+        const renderer = new marked.Renderer();
+        const originalCodeRenderer = renderer.code.bind(renderer);
+
+        renderer.code = function(code, language) {
+            // Handle both old and new marked.js API
+            let codeText, lang;
+            if (typeof code === 'object') {
+                codeText = code.text;
+                lang = code.lang;
+            } else {
+                codeText = code;
+                lang = language;
+            }
+
+            if (lang === 'mermaid') {
+                const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                return `<div class="mermaid" id="${id}">${codeText}</div>`;
+            }
+            return originalCodeRenderer(code, language);
+        };
+
+        marked.use({ renderer });
+
+        // Render function
+        async function renderMarkdown() {
+            const markdown = markdownInput.value;
+
+            if (!markdown.trim()) {
+                status.textContent = 'Nothing to render';
+                status.className = 'status';
+                return;
+            }
+
+            try {
+                // Parse markdown
+                const html = marked.parse(markdown);
+                markdownOutput.innerHTML = html;
+
+                // Process Mermaid diagrams
+                const mermaidDivs = markdownOutput.querySelectorAll('.mermaid');
+
+                if (mermaidDivs.length > 0) {
+                    for (const div of mermaidDivs) {
+                        const id = div.id;
+                        const graphDefinition = div.textContent;
+                        try {
+                            const { svg } = await mermaid.render(id + '-svg', graphDefinition);
+                            div.innerHTML = svg;
+                        } catch (err) {
+                            div.innerHTML = `<pre style="color: #c62828; background: #ffebee; padding: 1rem; border-radius: 4px;">Mermaid Error: ${err.message}</pre>`;
+                        }
+                    }
+                }
+
+                // Switch to preview mode
+                editorSection.classList.add('minimized');
+                previewSection.classList.add('visible');
+                renderBtn.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+
+                status.textContent = 'Rendered successfully';
+                status.className = 'status success';
+            } catch (err) {
+                status.textContent = 'Error: ' + err.message;
+                status.className = 'status';
+            }
+        }
+
+        // Edit function
+        function showEditor() {
+            editorSection.classList.remove('minimized');
+            previewSection.classList.remove('visible');
+            renderBtn.style.display = 'inline-block';
+            editBtn.style.display = 'none';
+            status.textContent = '';
+            markdownInput.focus();
+        }
+
+        // Clear function
+        function clearAll() {
+            markdownInput.value = '';
+            markdownOutput.innerHTML = '';
+            showEditor();
+            status.textContent = 'Cleared';
+            setTimeout(() => { status.textContent = ''; }, 2000);
+        }
+
+        // Event listeners
+        renderBtn.addEventListener('click', renderMarkdown);
+        editBtn.addEventListener('click', showEditor);
+        clearBtn.addEventListener('click', clearAll);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Enter to render
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                if (editorSection.classList.contains('minimized')) {
+                    showEditor();
+                } else {
+                    renderMarkdown();
+                }
+            }
+            // Escape to go back to editor
+            if (e.key === 'Escape' && previewSection.classList.contains('visible')) {
+                showEditor();
+            }
+        });
+    </script>
+</body>
+</html>
