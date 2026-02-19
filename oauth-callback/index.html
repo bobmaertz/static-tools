@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Callback Inspector</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #fafafa;
+            --text: #212121;
+            --text-dim: #666;
+            --accent: #1565c0;
+            --border: #e0e0e0;
+            --code-bg: #f5f5f5;
+            --success: #2e7d32;
+            --success-bg: #e8f5e9;
+            --success-border: #a5d6a7;
+            --error: #c62828;
+            --error-bg: #ffebee;
+            --error-border: #ef9a9a;
+            --warning: #e65100;
+            --warning-bg: #fff3e0;
+            --warning-border: #ffcc80;
+            --timer-ok: #2e7d32;
+            --timer-warn: #e65100;
+            --timer-crit: #c62828;
+            --param-known-bg: #e3f2fd;
+            --param-known-border: #90caf9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        header h1 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        header h1 a {
+            color: var(--text);
+            text-decoration: none;
+        }
+
+        header h1 a:hover {
+            color: var(--accent);
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+
+        main {
+            flex: 1;
+            padding: 1.5rem 2rem;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* ── No-params state ── */
+        .no-params {
+            display: none;
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-dim);
+        }
+
+        .no-params.visible {
+            display: block;
+        }
+
+        .no-params h2 {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        .no-params p {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .no-params code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+            background: var(--code-bg);
+            padding: 0.2em 0.4em;
+        }
+
+        /* ── Params content ── */
+        .params-content {
+            display: none;
+        }
+
+        .params-content.visible {
+            display: block;
+        }
+
+        /* ── URL display ── */
+        .url-box {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .url-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+            padding-top: 0.1em;
+            flex-shrink: 0;
+        }
+
+        .url-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text);
+            word-break: break-all;
+            flex: 1;
+        }
+
+        .copy-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            padding: 0.2rem 0.5rem;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text-dim);
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: all 0.15s ease;
+        }
+
+        .copy-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .copy-btn.copied {
+            border-color: var(--success);
+            color: var(--success);
+        }
+
+        /* ── Status banner ── */
+        .status-banner {
+            padding: 0.75rem 1rem;
+            border: 1px solid;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .status-banner.success {
+            background: var(--success-bg);
+            border-color: var(--success-border);
+            color: var(--success);
+        }
+
+        .status-banner.error {
+            background: var(--error-bg);
+            border-color: var(--error-border);
+            color: var(--error);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: currentColor;
+        }
+
+        /* ── Params table ── */
+        .section-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.5rem;
+        }
+
+        .params-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        .params-table th {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-align: left;
+            padding: 0.5rem 0.75rem;
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .params-table td {
+            padding: 0.6rem 0.75rem;
+            border: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        .params-table tr:nth-child(even) td {
+            background: #fefefe;
+        }
+
+        .param-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .param-name.known {
+            color: var(--accent);
+        }
+
+        .param-name.error-param {
+            color: var(--error);
+        }
+
+        .param-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            word-break: break-all;
+            color: var(--text);
+        }
+
+        .param-desc {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        .param-tag {
+            display: inline-block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            padding: 0.1em 0.4em;
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            vertical-align: middle;
+            margin-left: 0.4em;
+        }
+
+        .tag-spec {
+            background: var(--param-known-bg);
+            border: 1px solid var(--param-known-border);
+            color: var(--accent);
+        }
+
+        .tag-error {
+            background: var(--error-bg);
+            border: 1px solid var(--error-border);
+            color: var(--error);
+        }
+
+        .tag-oidc {
+            background: #f3e5f5;
+            border: 1px solid #ce93d8;
+            color: #6a1b9a;
+        }
+
+        .row-copy {
+            text-align: right;
+        }
+
+        /* ── Timer section ── */
+        .timer-section {
+            border: 1px solid var(--border);
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+            background: white;
+        }
+
+        .timer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .timer-title {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        .timer-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 3rem;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            color: var(--timer-ok);
+            transition: color 0.5s ease;
+            text-align: center;
+            margin: 0.5rem 0;
+            line-height: 1;
+        }
+
+        .timer-display.warn {
+            color: var(--timer-warn);
+        }
+
+        .timer-display.crit {
+            color: var(--timer-crit);
+        }
+
+        .timer-display.expired {
+            color: var(--timer-crit);
+        }
+
+        .timer-progress {
+            width: 100%;
+            height: 4px;
+            background: var(--border);
+            margin: 0.75rem 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .timer-bar {
+            height: 100%;
+            background: var(--timer-ok);
+            transition: width 1s linear, background 0.5s ease;
+            width: 100%;
+        }
+
+        .timer-bar.warn {
+            background: var(--timer-warn);
+        }
+
+        .timer-bar.crit {
+            background: var(--timer-crit);
+        }
+
+        .timer-config {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .timer-config label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+
+        .timer-slider {
+            flex: 1;
+            min-width: 120px;
+            accent-color: var(--accent);
+        }
+
+        .timer-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            flex-shrink: 0;
+        }
+
+        .timer-input {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            width: 3.5rem;
+            padding: 0.3rem 0.4rem;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text);
+            text-align: right;
+        }
+
+        .timer-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .timer-unit {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+        }
+
+        .timer-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        button.timer-btn {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            padding: 0.4rem 0.9rem;
+            border: 1px solid var(--border);
+            background: white;
+            color: var(--text);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        button.timer-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        button.timer-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        button.timer-btn.primary:hover {
+            background: #1256a3;
+        }
+
+        .timer-status {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-left: auto;
+            align-self: center;
+        }
+
+        .timer-expires-at {
+            font-size: 0.78rem;
+            color: var(--text-dim);
+            text-align: center;
+            margin-top: 0.25rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 600px) {
+            header {
+                padding: 1rem;
+            }
+
+            main {
+                padding: 1rem;
+            }
+
+            header h1 {
+                font-size: 1.05rem;
+            }
+
+            .timer-display {
+                font-size: 2.25rem;
+            }
+
+            .params-table {
+                font-size: 0.82rem;
+            }
+
+            .url-box {
+                flex-direction: column;
+                gap: 0.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1><a href="/">tools.bobmaertz.com</a> / oauth-callback</h1>
+        <p class="subtitle">Inspect OAuth 2.0 / OIDC callback query parameters</p>
+    </header>
+
+    <main>
+        <!-- No params state -->
+        <div id="noParams" class="no-params">
+            <h2>No query parameters detected</h2>
+            <p>Navigate to this page with an OAuth callback URL, for example:</p>
+            <br>
+            <p><code>?code=abc123&amp;state=xyz&amp;iss=https%3A%2F%2Fexample.com</code></p>
+            <br>
+            <p>or an error response:</p>
+            <br>
+            <p><code>?error=access_denied&amp;error_description=User+denied+access&amp;state=xyz</code></p>
+            <br>
+            <p style="margin-top:1.5rem;font-size:0.82rem;">
+                Spec-compliant parameters (RFC 6749, RFC 9207, OpenID Connect) are annotated automatically.
+            </p>
+        </div>
+
+        <!-- Params content -->
+        <div id="paramsContent" class="params-content">
+
+            <!-- Full URL -->
+            <div class="url-box">
+                <span class="url-label">URL</span>
+                <span id="fullUrl" class="url-value"></span>
+                <button class="copy-btn" id="copyUrlBtn" onclick="copyText(window.location.href, this)">copy</button>
+            </div>
+
+            <!-- Status banner (success / error) -->
+            <div id="statusBanner" class="status-banner" style="display:none;"></div>
+
+            <!-- Parameters table -->
+            <div class="section-label">Query Parameters</div>
+            <table class="params-table" id="paramsTable">
+                <thead>
+                    <tr>
+                        <th style="width:22%">Parameter</th>
+                        <th>Value</th>
+                        <th style="width:28%">Description</th>
+                        <th style="width:4%;min-width:52px"></th>
+                    </tr>
+                </thead>
+                <tbody id="paramsBody"></tbody>
+            </table>
+
+            <!-- Timer -->
+            <div class="timer-section">
+                <div class="timer-header">
+                    <span class="timer-title">Authorization Code Expiry Timer</span>
+                    <span id="timerStatus" class="timer-status">ready</span>
+                </div>
+
+                <div id="timerDisplay" class="timer-display">10:00</div>
+                <div id="timerExpiresAt" class="timer-expires-at"></div>
+
+                <div class="timer-progress">
+                    <div id="timerBar" class="timer-bar"></div>
+                </div>
+
+                <div class="timer-config">
+                    <label for="timerSlider">Duration:</label>
+                    <input
+                        type="range"
+                        id="timerSlider"
+                        class="timer-slider"
+                        min="10"
+                        max="600"
+                        value="600"
+                        step="10"
+                        oninput="onSliderChange(this.value)"
+                    >
+                    <div class="timer-input-wrap">
+                        <input
+                            type="number"
+                            id="timerSeconds"
+                            class="timer-input"
+                            min="10"
+                            max="600"
+                            value="600"
+                            oninput="onInputChange(this.value)"
+                        >
+                        <span class="timer-unit">sec</span>
+                    </div>
+                </div>
+
+                <div class="timer-controls">
+                    <button class="timer-btn primary" id="startBtn" onclick="startTimer()">Start</button>
+                    <button class="timer-btn" id="pauseBtn" onclick="pauseTimer()" disabled>Pause</button>
+                    <button class="timer-btn" id="resetBtn" onclick="resetTimer()">Reset</button>
+                </div>
+            </div>
+
+        </div><!-- /paramsContent -->
+    </main>
+
+    <script>
+        // ── OAuth / OIDC known parameters ──────────────────────────────────────────
+        const KNOWN_PARAMS = {
+            // RFC 6749 — success
+            code: {
+                desc: 'Authorization code to be exchanged for tokens',
+                tag: 'spec',
+                spec: 'RFC 6749 §4.1.2'
+            },
+            state: {
+                desc: 'Opaque value used to maintain state and prevent CSRF',
+                tag: 'spec',
+                spec: 'RFC 6749 §4.1.2'
+            },
+            // RFC 6749 — error
+            error: {
+                desc: 'Error code from the authorization server',
+                tag: 'error',
+                spec: 'RFC 6749 §4.1.2.1'
+            },
+            error_description: {
+                desc: 'Human-readable error description',
+                tag: 'error',
+                spec: 'RFC 6749 §4.1.2.1'
+            },
+            error_uri: {
+                desc: 'URI of a page with error information',
+                tag: 'error',
+                spec: 'RFC 6749 §4.1.2.1'
+            },
+            // RFC 9207 — issuer identification
+            iss: {
+                desc: 'Issuer identifier — protects against mix-up attacks',
+                tag: 'spec',
+                spec: 'RFC 9207'
+            },
+            // OpenID Connect Core — implicit / hybrid flows
+            id_token: {
+                desc: 'ID Token (OpenID Connect implicit/hybrid flow)',
+                tag: 'oidc',
+                spec: 'OIDC Core §3.2'
+            },
+            access_token: {
+                desc: 'Access token (implicit flow — avoid in production)',
+                tag: 'oidc',
+                spec: 'OIDC Core §3.2'
+            },
+            token_type: {
+                desc: 'Type of access token issued (usually "Bearer")',
+                tag: 'oidc',
+                spec: 'OIDC Core §3.2'
+            },
+            expires_in: {
+                desc: 'Lifetime in seconds of the access token',
+                tag: 'oidc',
+                spec: 'RFC 6749 §4.2.2'
+            },
+            scope: {
+                desc: 'Scope of the access token',
+                tag: 'oidc',
+                spec: 'RFC 6749 §4.2.2'
+            },
+            // OpenID Connect Session Management
+            session_state: {
+                desc: 'Session state (OpenID Connect Session Management)',
+                tag: 'oidc',
+                spec: 'OIDC Session §2'
+            }
+        };
+
+        const ERROR_CODES = {
+            invalid_request: 'The request is missing a required parameter or is otherwise malformed.',
+            unauthorized_client: 'The client is not authorized to request an authorization code.',
+            access_denied: 'The resource owner denied the request.',
+            unsupported_response_type: 'The server does not support obtaining an authorization code via this method.',
+            invalid_scope: 'The requested scope is invalid, unknown, or malformed.',
+            server_error: 'The server encountered an unexpected condition.',
+            temporarily_unavailable: 'The server is currently unable to handle the request.'
+        };
+
+        // ── Parse params ───────────────────────────────────────────────────────────
+        const params = new URLSearchParams(window.location.search);
+        const paramEntries = [...params.entries()];
+
+        const noParams = document.getElementById('noParams');
+        const paramsContent = document.getElementById('paramsContent');
+
+        if (paramEntries.length === 0) {
+            noParams.classList.add('visible');
+        } else {
+            paramsContent.classList.add('visible');
+            renderPage();
+        }
+
+        function renderPage() {
+            // Full URL
+            document.getElementById('fullUrl').textContent = window.location.href;
+
+            // Status banner
+            const errorVal = params.get('error');
+            const codeVal = params.get('code');
+            const banner = document.getElementById('statusBanner');
+
+            if (errorVal) {
+                banner.style.display = 'flex';
+                banner.className = 'status-banner error';
+                const knownMsg = ERROR_CODES[errorVal] ? ` — ${ERROR_CODES[errorVal]}` : '';
+                banner.innerHTML = `<span class="status-dot"></span><strong>Error:</strong>&nbsp;${escHtml(errorVal)}${knownMsg}`;
+            } else if (codeVal) {
+                banner.style.display = 'flex';
+                banner.className = 'status-banner success';
+                banner.innerHTML = `<span class="status-dot"></span><strong>Authorization code received</strong> — ready for token exchange`;
+            }
+
+            // Params table
+            const tbody = document.getElementById('paramsBody');
+            tbody.innerHTML = '';
+
+            paramEntries.forEach(([key, value]) => {
+                const info = KNOWN_PARAMS[key];
+                const isError = info && info.tag === 'error';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <span class="param-name ${info ? (isError ? 'error-param' : 'known') : ''}">${escHtml(key)}</span>${info ? tagHtml(info.tag) : ''}
+                    </td>
+                    <td><span class="param-value">${escHtml(value)}</span></td>
+                    <td class="param-desc">${info ? escHtml(info.desc) + '<br><span style="font-size:0.72rem;color:#999;">' + info.spec + '</span>' : ''}</td>
+                    <td class="row-copy"><button class="copy-btn" onclick="copyText('${escAttr(value)}', this)">copy</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function tagHtml(tag) {
+            const cls = tag === 'error' ? 'tag-error' : tag === 'oidc' ? 'tag-oidc' : 'tag-spec';
+            return `<span class="param-tag ${cls}">${tag === 'spec' ? 'RFC' : tag.toUpperCase()}</span>`;
+        }
+
+        // ── Copy helper ────────────────────────────────────────────────────────────
+        function copyText(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const prev = btn.textContent;
+                btn.textContent = 'copied';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = prev;
+                    btn.classList.remove('copied');
+                }, 1500);
+            }).catch(() => {
+                // Fallback for older browsers
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                const prev = btn.textContent;
+                btn.textContent = 'copied';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = prev;
+                    btn.classList.remove('copied');
+                }, 1500);
+            });
+        }
+
+        // ── Escaping helpers ───────────────────────────────────────────────────────
+        function escHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function escAttr(str) {
+            return String(str)
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'");
+        }
+
+        // ── Timer ─────────────────────────────────────────────────────────────────
+        const DEFAULT_SECONDS = 600; // 10 minutes
+        const MIN_SECONDS = 10;
+        const MAX_SECONDS = 600;
+
+        let totalSeconds = DEFAULT_SECONDS;
+        let remainingSeconds = DEFAULT_SECONDS;
+        let timerInterval = null;
+        let running = false;
+        let expiresAt = null;
+
+        const timerDisplay = document.getElementById('timerDisplay');
+        const timerBar = document.getElementById('timerBar');
+        const timerStatus = document.getElementById('timerStatus');
+        const timerExpiresAt = document.getElementById('timerExpiresAt');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const slider = document.getElementById('timerSlider');
+        const secInput = document.getElementById('timerSeconds');
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = s % 60;
+            return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+        }
+
+        function updateTimerUI() {
+            const pct = totalSeconds > 0 ? (remainingSeconds / totalSeconds) * 100 : 0;
+
+            timerDisplay.textContent = formatTime(remainingSeconds);
+            timerBar.style.width = pct + '%';
+
+            // Color thresholds: warn at 25%, critical at 10%
+            const warnThreshold = totalSeconds * 0.25;
+            const critThreshold = totalSeconds * 0.1;
+
+            timerDisplay.className = 'timer-display';
+            timerBar.className = 'timer-bar';
+
+            if (remainingSeconds <= 0) {
+                timerDisplay.classList.add('expired');
+                timerBar.classList.add('crit');
+                timerBar.style.width = '0%';
+            } else if (remainingSeconds <= critThreshold) {
+                timerDisplay.classList.add('crit');
+                timerBar.classList.add('crit');
+            } else if (remainingSeconds <= warnThreshold) {
+                timerDisplay.classList.add('warn');
+                timerBar.classList.add('warn');
+            }
+        }
+
+        function startTimer() {
+            if (running) return;
+
+            if (remainingSeconds <= 0) {
+                remainingSeconds = totalSeconds;
+            }
+
+            running = true;
+            expiresAt = new Date(Date.now() + remainingSeconds * 1000);
+            timerExpiresAt.textContent = 'Expires at: ' + expiresAt.toLocaleTimeString();
+            timerStatus.textContent = 'running';
+            startBtn.disabled = true;
+            pauseBtn.disabled = false;
+
+            timerInterval = setInterval(() => {
+                remainingSeconds--;
+                updateTimerUI();
+
+                if (remainingSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    running = false;
+                    timerStatus.textContent = 'expired';
+                    timerExpiresAt.textContent = 'Expired at: ' + new Date().toLocaleTimeString();
+                    startBtn.disabled = false;
+                    pauseBtn.disabled = true;
+                }
+            }, 1000);
+
+            updateTimerUI();
+        }
+
+        function pauseTimer() {
+            if (!running) return;
+            clearInterval(timerInterval);
+            running = false;
+            timerStatus.textContent = 'paused';
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            timerExpiresAt.textContent = '';
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            running = false;
+            remainingSeconds = totalSeconds;
+            timerStatus.textContent = 'ready';
+            timerExpiresAt.textContent = '';
+            startBtn.disabled = false;
+            pauseBtn.disabled = true;
+            updateTimerUI();
+        }
+
+        function setDuration(seconds) {
+            const s = Math.max(MIN_SECONDS, Math.min(MAX_SECONDS, parseInt(seconds, 10) || DEFAULT_SECONDS));
+            totalSeconds = s;
+            remainingSeconds = s;
+            slider.value = s;
+            secInput.value = s;
+            if (!running) {
+                timerStatus.textContent = 'ready';
+                timerExpiresAt.textContent = '';
+                updateTimerUI();
+            }
+        }
+
+        function onSliderChange(val) {
+            if (running) pauseTimer();
+            setDuration(val);
+        }
+
+        function onInputChange(val) {
+            if (running) pauseTimer();
+            const s = Math.max(MIN_SECONDS, Math.min(MAX_SECONDS, parseInt(val, 10) || MIN_SECONDS));
+            slider.value = s;
+            setDuration(s);
+        }
+
+        // Initial render
+        updateTimerUI();
+    </script>
+</body>
+</html>
